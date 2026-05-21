@@ -102,8 +102,10 @@ def evaluate_holes_distances(df_nan_list: pd.DataFrame, start_datetime: dt.datet
     df_nan_list['right_distance'] = pd.Series(0, index=df_nan_list.index)
 
     if len_nan == 1:
-        df_nan_list.left_distance.iat[0] = (df_nan_list.first_dt.iat[0] - start_datetime).total_seconds()
-        df_nan_list.right_distance.iat[0] = (end_datetime - df_nan_list.last_dt.iat[0]).total_seconds()
+        df_nan_list.at[df_nan_list.index[0], 'left_distance'] = (
+            df_nan_list.first_dt.iat[0] - start_datetime).total_seconds()
+        df_nan_list.at[df_nan_list.index[0], 'right_distance'] = (
+            end_datetime - df_nan_list.last_dt.iat[0]).total_seconds()
 
     else:
         common_values = ((np.array(df_nan_list.first_dt.iloc[1:len_nan]
@@ -290,6 +292,7 @@ def substitute_holes(df: pd.DataFrame, scan_column: str, datetime_column: str, r
     """
 
     len_nan = len(df_nan_list)
+    scan_col_idx = df.columns.get_loc(scan_column)
 
     i = 0
     j = 1
@@ -297,14 +300,14 @@ def substitute_holes(df: pd.DataFrame, scan_column: str, datetime_column: str, r
         trend = np.zeros(min(trend_approx_size, len(df)-df_nan_list.nan_counter.iat[0]))
         for t in range(len(trend)):
             local_index = df_nan_list.nan_counter.iat[0] + t
-            trend[t] = df[scan_column].iat[local_index] - seasonal_comp[
+            trend[t] = df.iat[local_index, scan_col_idx] - seasonal_comp[
                 get_weekly_index(timestamp=df[datetime_column].iat[local_index], resolution=resolution)]
 
         trend_avg = np.nanmean(trend)
 
         for t in range(df_nan_list.nan_counter.iat[0]):
-            df[scan_column].iat[t] = trend_avg + seasonal_comp[get_weekly_index(timestamp=df[datetime_column].iat[t],
-                                                                                resolution=resolution)]
+            df.iat[t, scan_col_idx] = trend_avg + seasonal_comp[get_weekly_index(
+                timestamp=df[datetime_column].iat[t], resolution=resolution)]
         i = 1
         j = df_nan_list.nan_counter.iat[0]
 
@@ -320,14 +323,14 @@ def substitute_holes(df: pd.DataFrame, scan_column: str, datetime_column: str, r
             trend_pre = np.zeros(min(trend_approx_size, j))
             for t in range(len(trend_pre)):
                 local_index = j + t - len(trend_pre)
-                trend_pre[t] = df[scan_column].iat[local_index] - seasonal_comp[
+                trend_pre[t] = df.iat[local_index, scan_col_idx] - seasonal_comp[
                     get_weekly_index(timestamp=df[datetime_column].iat[local_index], resolution=resolution)]
             trend_pre_avg = np.nanmean(trend_pre)
 
             trend_post = np.zeros(min(trend_approx_size, len(df)-j-df_nan_list.nan_counter.iat[i]))
             for t in range(len(trend_post)):
                 local_index = j + df_nan_list.nan_counter.iat[i] + t
-                trend_post[t] = df[scan_column].iat[local_index] - seasonal_comp[
+                trend_post[t] = df.iat[local_index, scan_col_idx] - seasonal_comp[
                     get_weekly_index(timestamp=df[datetime_column].iat[local_index], resolution=resolution)]
             trend_post_avg = np.nanmean(trend_post)
 
@@ -337,7 +340,7 @@ def substitute_holes(df: pd.DataFrame, scan_column: str, datetime_column: str, r
 
             for t in range(df_nan_list.nan_counter.iat[i]):
                 temp_trend = t_coeff * (t + (len(trend_pre) + 1.0)/2.0) + trend_pre_avg
-                df[scan_column].iat[j+t] = temp_trend + seasonal_comp[
+                df.iat[j + t, scan_col_idx] = temp_trend + seasonal_comp[
                     get_weekly_index(timestamp=df[datetime_column].iat[j+t], resolution=resolution)]
 
             j += df_nan_list.nan_counter.iat[i]
@@ -353,12 +356,12 @@ def substitute_holes(df: pd.DataFrame, scan_column: str, datetime_column: str, r
                 trend = np.zeros(min(trend_approx_size, j))
                 for t in range(len(trend)):
                     local_index = j + t - len(trend)
-                    trend[t] = df[scan_column].iat[local_index] - seasonal_comp[
+                    trend[t] = df.iat[local_index, scan_col_idx] - seasonal_comp[
                         get_weekly_index(timestamp=df[datetime_column].iat[local_index], resolution=resolution)]
                 trend_avg = np.nanmean(trend)
 
                 for t in range(df_nan_list.nan_counter.iat[i]):
-                    df[scan_column].iat[j + t] = trend_avg + seasonal_comp[
+                    df.iat[j + t, scan_col_idx] = trend_avg + seasonal_comp[
                         get_weekly_index(timestamp=df[datetime_column].iat[j+t], resolution=resolution)]
 
                 flag = False
